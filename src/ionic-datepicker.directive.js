@@ -236,7 +236,7 @@
                     }
                 };
 
-                scope.date_selection = {selected: true, selectedDate: scope.ipDate, submitted: false};
+                scope.date_selection = {selected: true, selectedDate: angular.copy(scope.ipDate), submitted: false};
 
                 scope.dateSelected = function (date) {
                     if (!date) return;
