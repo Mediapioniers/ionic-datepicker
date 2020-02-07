@@ -16,7 +16,7 @@
             scope: {
                 inputObj: '=inputObj'
             },
-            link: function(scope, element, attrs) {
+            link: function(scope, element) {
                 //Setting the title, today, close and set strings for the date picker
                 scope.titleLabel = scope.inputObj.titleLabel || 'Select Date';
                 scope.subTitleLabel = scope.inputObj.subTitleLabel || '';
@@ -266,7 +266,7 @@
                 }
 
                 function getRefreshDate(year) {
-                    const refreshDate = clearHMSM(new Date(currentDate));
+                    const refreshDate = clearHMSM(new Date(scope.date_selection.selectedDate));
                     const checkDate = new Date(year, refreshDate.getMonth() + 1, 0);
                     // Let's try keep the selected day. Only if 29th of February was selected,
                     // we move it up 1 day if the selected year does not have the 29th.
