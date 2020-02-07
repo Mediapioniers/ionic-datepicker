@@ -1,21 +1,22 @@
 //By Rajeshwar Patlolla - rajeshwar.patlolla@gmail.com
 //https://github.com/rajeshwarpatlolla
-
-(function () {
+/* global angular */
+(function() {
     'use strict';
 
     angular.module('ionic-datepicker')
         .directive('ionicDatepicker', IonicDatepicker);
 
     IonicDatepicker.$inject = ['$ionicPopup', '$ionicModal', 'IonicDatepickerService'];
+
     function IonicDatepicker($ionicPopup, $ionicModal, IonicDatepickerService) {
         return {
             restrict: 'AE',
             replace: true,
             scope: {
-                inputObj: "=inputObj"
+                inputObj: '=inputObj'
             },
-            link: function (scope, element, attrs) {
+            link: function(scope, element) {
                 //Setting the title, today, close and set strings for the date picker
                 scope.titleLabel = scope.inputObj.titleLabel || 'Select Date';
                 scope.subTitleLabel = scope.inputObj.subTitleLabel || '';
@@ -68,7 +69,7 @@
                 //Setting the disabled dates list.
                 scope.disabledDates = [];
                 if (angular.isArray(scope.inputObj.disabledDates) && scope.inputObj.disabledDates.length > 0) {
-                    angular.forEach(scope.inputObj.disabledDates, function (val) {
+                    angular.forEach(scope.inputObj.disabledDates, function(val) {
                         val = clearHMSM(val);
                         scope.disabledDates.push(val.getTime());
                     });
@@ -94,9 +95,9 @@
 
                 var currentDate = clearHMSM(angular.copy(scope.ipDate));
 
-                scope.selctedDateString = currentDate.toString();
-                // set selctedDateStringCopy so the Initial/Input date gets visually selected in the day list as well
-                scope.selctedDateStringCopy = angular.copy(scope.selctedDateString);
+                scope.selectedDateString = currentDate.toString();
+                // set selectedDateStringCopy so the Initial/Input date gets visually selected in the day list as well
+                scope.selectedDateStringCopy = angular.copy(scope.selectedDateString);
 
                 if (scope.mondayFirst === true) {
                     var lastWeekDay = scope.weekNames.shift();
@@ -117,7 +118,7 @@
                     epochUTC: (tempToday.getTime() + (tempToday.getTimezoneOffset() * 60 * 1000))
                 };
 
-                var refreshDateList = function (current_date) {
+                var refreshDateList = function(current_date, selectThisDate) {
 
                     current_date = clearHMSM(current_date);
                     var lastDay = new Date(current_date.getFullYear(), current_date.getMonth() + 1, 0).getDate();
@@ -151,7 +152,7 @@
                     scope.rows = [];
                     scope.cols = [];
 
-                    scope.selctedDateString = current_date.toString();
+                    scope.selectedDateString = current_date.toString();
                     scope.currentMonth = scope.fullMonthsList[current_date.getMonth()];
                     // scope.currentYear has to be a String value at this point and may not be numeric. This is because ngRepeat needs
                     // the model value to be in the list of values it iterates over. When no corresponding value is found, ngRepeat adds an
@@ -168,9 +169,18 @@
                     scope.cols.length = scope.numColumns;
 
                     currentDate = clearHMSM(angular.copy(current_date));
+                    if (selectThisDate) {
+                        const dateString = current_date.toString();
+                        const dateFromDayList = scope.dayList.find(function(value) {
+                            return value.dateString === dateString;
+                        });
+                        if (dateFromDayList) {
+                            scope.dateSelected(dateFromDayList);
+                        }
+                    }
                 };
 
-                scope.monthChanged = function (month) {
+                scope.monthChanged = function(month) {
                     var monthNumber = scope.fullMonthsList.indexOf(month);
                     if (monthNumber < currentDate.getMonth()) { //moving backwards so check From Date.
                         var prevDate = clearHMSM(new Date(currentDate));
@@ -178,8 +188,7 @@
                         prevDate.setMonth(monthNumber);
                         if (earlierDateIsOk(prevDate)) {
                             refreshDateList(prevDate);
-                        }
-                        else {
+                        } else {
                             refreshDateList(scope.enableDatesFrom.epochDate); // Since date transition is not allowed, reset the Dropdowns to first allowed date
                         }
                     } else { //it's not smaller, and because it changed, it must be bigger... so check the To date
@@ -195,15 +204,14 @@
                     }
                 };
 
-                scope.yearChanged = function (year) {
+                scope.yearChanged = function(year) {
                     if (year < currentDate.getFullYear()) {
                         var prevDate = clearHMSM(new Date(currentDate));
                         prevDate.setDate(1);
                         prevDate.setFullYear(year);
                         if (earlierDateIsOk(prevDate)) {
-                            refreshDateList(prevDate);
-                        }
-                        else {
+                            refreshDateList(getRefreshDate(year), true);
+                        } else {
                             refreshDateList(scope.enableDatesFrom.epochDate); // Since date transition is not allowed, reset the Dropdowns to the first allowed date
                         }
                     } else { //it's not smaller, and because it changed, it must be bigger... so check the To date
@@ -211,7 +219,7 @@
                         // with day 0 and we end up with the last day of the desired month ;)
                         var nextDate = clearHMSM(new Date(year, currentDate.getMonth() + 1, 0));
                         if (laterDateIsOk(nextDate)) {
-                            refreshDateList(nextDate);
+                            refreshDateList(getRefreshDate(year), true);
                         } else {
                             // Since date transition to a date outside the max range is not allowed, move to the last allowed month
                             refreshDateList(scope.enableDatesTo.epochDate);
@@ -219,7 +227,7 @@
                     }
                 };
 
-                scope.prevMonth = function () {
+                scope.prevMonth = function() {
                     var prevDate = clearHMSM(new Date(currentDate));
                     prevDate.setDate(1);
                     prevDate.setMonth(prevDate.getMonth() - 1);
@@ -228,7 +236,7 @@
                     }
                 };
 
-                scope.nextMonth = function () {
+                scope.nextMonth = function() {
                     // new Date with a 0 for the days will translate into the last day of the previous month. So add 2 months with day 0 and we end up with the last day of the next month ;)
                     var nextDate = clearHMSM(new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0));
                     if (laterDateIsOk(nextDate)) {
@@ -238,10 +246,12 @@
 
                 scope.date_selection = {selected: true, selectedDate: angular.copy(scope.ipDate), submitted: false};
 
-                scope.dateSelected = function (date) {
-                    if (!date) return;
-                    scope.selctedDateString = date.dateString;
-                    scope.selctedDateStringCopy = angular.copy(scope.selctedDateString);
+                scope.dateSelected = function(date) {
+                    if (!date) {
+                        return;
+                    }
+                    scope.selectedDateString = date.dateString;
+                    scope.selectedDateStringCopy = angular.copy(scope.selectedDateString);
                     scope.date_selection.selected = true;
                     scope.date_selection.selectedDate = new Date(date.dateString);
                     scope.selectedDateFull = scope.date_selection.selectedDate;
@@ -253,6 +263,18 @@
                     if (scope.date_selection.selected === true) {
                         scope.inputObj.callback(scope.date_selection.selectedDate);
                     }
+                }
+
+                function getRefreshDate(year) {
+                    const refreshDate = clearHMSM(new Date(scope.date_selection.selectedDate));
+                    const checkDate = new Date(year, refreshDate.getMonth() + 1, 0);
+                    // Let's try keep the selected day. Only if 29th of February was selected,
+                    // we move it up 1 day if the selected year does not have the 29th.
+                    if (checkDate.getDate() < refreshDate.getDate()) {
+                        refreshDate.setDate(checkDate.getDate());
+                    }
+                    refreshDate.setFullYear(year);
+                    return refreshDate;
                 }
 
                 function clearHMSM(inputDate) {
@@ -286,7 +308,7 @@
                 // build the available months list based on enabled dates
                 function buildMonthList(inputDate) {
                     var result = [];
-                    angular.forEach(scope.fullMonthsList, function (value, index) {
+                    angular.forEach(scope.fullMonthsList, function(value, index) {
                         var checkDateFirst = new Date(inputDate);
                         checkDateFirst.setMonth(index);
                         checkDateFirst.setDate(1);
@@ -312,24 +334,24 @@
                         epochUTC: (tempEpoch.getTime() + (tempEpoch.getTimezoneOffset() * 60 * 1000))
                     };
 
-                    scope.selctedDateString = todayObj.dateString;
-                    scope.selctedDateStringCopy = angular.copy(scope.selctedDateString);
+                    scope.selectedDateString = todayObj.dateString;
+                    scope.selectedDateStringCopy = angular.copy(scope.selectedDateString);
                     scope.date_selection.selected = true;
                     scope.date_selection.selectedDate = new Date(todayObj.dateString);
                     refreshDateList(today);
                 }
 
                 //Called when the user clicks on the 'Close' button of the modal
-                scope.closeIonicDatePickerModal = function () {
+                scope.closeIonicDatePickerModal = function() {
                     scope.inputObj.callback(undefined);
                     scope.closeModal();
                 };
                 //Called when the user clicks on the 'Today' button of the modal
-                scope.setIonicDatePickerTodayDate = function () {
+                scope.setIonicDatePickerTodayDate = function() {
                     todaySelected();
                 };
                 //Called when the user clicks on the Set' button of the modal
-                scope.setIonicDatePickerDate = function () {
+                scope.setIonicDatePickerDate = function() {
                     dateSelected();
                     scope.closeModal();
                 };
@@ -338,19 +360,19 @@
                 $ionicModal.fromTemplateUrl('ionic-datepicker-modal.html', {
                     scope: scope,
                     animation: 'slide-in-up'
-                }).then(function (modal) {
+                }).then(function(modal) {
                     scope.modal = modal;
                 });
-                scope.openModal = function () {
+                scope.openModal = function() {
                     scope.modal.show();
                 };
 
-                scope.closeModal = function () {
+                scope.closeModal = function() {
                     scope.modal.hide();
                 };
 
                 //Called when the user clicks on the button to invoke the 'ionic-datepicker'
-                element.on("click", function () {
+                element.on('click', function() {
                     if (scope.date_selection.selectedDate) {
                         refreshDateList(scope.date_selection.selectedDate);
                     } else if (scope.ipDate) {
@@ -366,7 +388,7 @@
                         buttons.push({
                             text: scope.closeLabel,
                             type: scope.closeButtonType,
-                            onTap: function () {
+                            onTap: function() {
                                 scope.inputObj.callback(undefined);
                             }
                         });
@@ -374,7 +396,7 @@
                             buttons.push({
                                 text: scope.todayLabel,
                                 type: scope.todayButtonType,
-                                onTap: function (e) {
+                                onTap: function(e) {
                                     todaySelected();
                                     e.preventDefault();
                                 }
@@ -383,7 +405,7 @@
                         buttons.push({
                             text: scope.setLabel,
                             type: scope.setButtonType,
-                            onTap: function () {
+                            onTap: function() {
                                 dateSelected();
                             }
                         });
